@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
@@ -1837,6 +1839,7 @@ def write_files_r2(ins_class, ins_duplex, hex_insn_names, extendable_insn):
                 ilines += ["// {0:s}".format(i.syntax)]
                 if i.branch.type == "call" or i.branch.type == "callr":
                     ilines += ["op->type = R_ANAL_OP_TYPE_CALL;"]
+                    ilines += ["op->jump = op->addr + hi->ops[{0:d}].op.imm;".format(i.branch.target.index)]
                 else:
                     if i.branch.is_conditional:
                         ilines += ["op->type = R_ANAL_OP_TYPE_CJMP;"]
