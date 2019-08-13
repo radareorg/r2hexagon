@@ -1707,7 +1707,13 @@ def extract_mnemonic_r2(ins_tmpl):
             args += ["((hi->pf & HEX_PF_LSH1) == HEX_PF_LSH1) ? \":<<1\" : \"\""]
         elif isinstance(o, ImmediateTemplate):
             fmt[o.syntax] = "0x%x" # TODO: Better representation, etc
-            args += ["hi->ops[{0:d}].op.imm".format(i)]
+            #print("CASE")
+            
+            #print(fmtstr)
+            if ("JUMP_" in ins_tmpl.name or "CALL_" in ins_tmpl.name) and (i == len(ins_tmpl.operands)-1):
+                args += ["addr + (st32) hi->ops[{0:d}].op.imm".format(i)]
+            else:
+                args += ["hi->ops[{0:d}].op.imm".format(i)]
         else:
             pass
 
@@ -1822,7 +1828,7 @@ def write_files_r2(ins_class, ins_duplex, hex_insn_names, extendable_insn):
     includes += [""] # for the sake of beauty
 
     # Wrap everything into one function
-    lines = includes + make_C_block(lines, "int hexagon_disasm_instruction(ut32 hi_u32, HexInsn *hi)", None, "return 4;")
+    lines = includes + make_C_block(lines, "int hexagon_disasm_instruction(ut32 hi_u32, HexInsn *hi, ut32 addr)", None, "return 4;")
     with open(HEX_DISAS_FILENAME, "w") as f:
         for l in lines:
             f.write(l + "\n")
@@ -1837,15 +1843,16 @@ def write_files_r2(ins_class, ins_duplex, hex_insn_names, extendable_insn):
         if i.branch:
             if isinstance(i.branch.target, ImmediateTemplate):
                 ilines += ["// {0:s}".format(i.syntax)]
-                if i.branch.type == "call" or i.branch.type == "callr":
+
+                if i.branch.type == "call":
                     ilines += ["op->type = R_ANAL_OP_TYPE_CALL;"]
-                    ilines += ["op->jump = op->addr + hi->ops[{0:d}].op.imm;".format(i.branch.target.index)]
+                    ilines += ["op->jump = op->addr + (st32) hi->ops[{0:d}].op.imm;".format(i.branch.target.index)]
                 else:
                     if i.branch.is_conditional:
                         ilines += ["op->type = R_ANAL_OP_TYPE_CJMP;"]
                     else:
                         ilines += ["op->type = R_ANAL_OP_TYPE_JMP;"]
-                    ilines += ["op->jump = hi->ops[{0:d}].op.imm;".format(i.branch.target.index)]
+                    ilines += ["op->jump = op->addr + (st32) hi->ops[{0:d}].op.imm;".format(i.branch.target.index)]
                     ilines += ["op->fail = op->addr + op->size;"]
                 emulines += make_C_block(ilines, "case {0:s}:".format(i.name), None, "break;")
             if i.branch.type == "dealloc_return":
