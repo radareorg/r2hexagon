@@ -1707,9 +1707,6 @@ def extract_mnemonic_r2(ins_tmpl):
             args += ["((hi->pf & HEX_PF_LSH1) == HEX_PF_LSH1) ? \":<<1\" : \"\""]
         elif isinstance(o, ImmediateTemplate):
             fmt[o.syntax] = "0x%x" # TODO: Better representation, etc
-            #print("CASE")
-            
-            #print(fmtstr)
             if ("JUMP_" in ins_tmpl.name or "CALL_" in ins_tmpl.name) and (i == len(ins_tmpl.operands)-1):
                 args += ["addr + (st32) hi->ops[{0:d}].op.imm".format(i)]
             else:
