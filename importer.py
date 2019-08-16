@@ -1457,7 +1457,7 @@ def make_C_block(lines, begin = None, end = None, ret = None, indent=True):
 # The bits of the actual immediate need to be concatenated ignoring bit 15:14 and bit 0 (the zeros in the mask).
 # So this function returns C-code which shifts the bits of the immediate segments and ORs them to represent a valid value.
 #
-# hi_u32 is the raw instruction from which we want to extract bit 24:16 and bit 13:1 (bit 31:25 are ignored here)
+# hi_u32 is the raw instruction from which we want to concatenate bit 24:16 and bit 13:1 (bit 31:25 are ignored here)
 # 10th         2           1
 # bit #    432109876 54 3210987654321 0
 
@@ -1636,9 +1636,10 @@ def extract_fields_r2(ins_tmpl):
             val = "hi->ops[{0:d}].op.imm = {1:s}".format(i, mask)
             # Perform sign extension (also applies to jump targets...)
             # Also applies to the loops
+
             if ins_tmpl.operands[n].signed or (is_branch and i == ti):
-                signmask = "hi->ops[{0:d}].op.imm & (1 << {0:d})".format(i, f.mask_len)
-                signext = "hi->ops[{0:d}].op.imm |= (0xFFFFFFFF << {0:d});".format(i, f.mask_len)
+                signmask = "hi->ops[{0:d}].op.imm & (1 << {1:d})".format(i, f.mask_len)
+                signext = "hi->ops[{0:d}].op.imm |= (0xFFFFFFFF << {1:d});".format(i, f.mask_len)
                 slines += make_C_block([signext], "if ({0:s})".format(signmask))
             # Handle scaled operands
             if ins_tmpl.operands[n].scaled:
