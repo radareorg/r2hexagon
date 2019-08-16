@@ -1448,21 +1448,27 @@ def make_C_block(lines, begin = None, end = None, ret = None, indent=True):
         new += ["}"]
     return new
 
-# Group consequent bits in a numbers, for faster masking
-
+# --------------------------------------------------------------------------------
+# Associated bits of an instruction field are scattered over the encoding instruction in a whole.
+# Here we assemble them by using the mask of the field.
+#
+# Simple example:
 # Let the input mask of an immediate be: 0b1111111110011111111111110
-# Though the bits of the actual immediate need to be concated ignoring bit 15:14 and bit 0 (the zeros in the mask).
-# So this function returns C-code which shifts the bits of the immediate parts and ORs them to represents a valid value.
-
-# hi_u32 is the actual immediate.
+# The bits of the actual immediate need to be concatenated ignoring bit 15:14 and bit 0 (the zeros in the mask).
+# So this function returns C-code which shifts the bits of the immediate segments and ORs them to represent a valid value.
+#
+# hi_u32 is the raw instruction from which we want to extract bit 24:16 and bit 13:1 (bit 31:25 are ignored here)
+# 10th         2           1
+# bit #    432109876 54 3210987654321 0
 
 # Mask:    111111111|00|1111111111111|0
 # hi_u32:  100111101|10|1010000010011|0
 #              |                 |
-#           +--+ <---------------|-------[shift bit 22:16]             [shift bit 13:1]
-#       ____|____                |     ((hi_u32 & 0x1ff0000) >> 3) | ((hi_u32 & 0x3ffe) >> 1))
-#       1001111010000000000000   |                                          |
-# OR             1010000010011 <-+------------------------------------------+
+#              |                 |
+#           +--+ >---------------|-------[shift bit 24:16]        
+#       ____|____                |     ((hi_u32 & 0x1ff0000) >> 3)
+#       1001111010000000000000   |                                   [shift bit 13:1]
+# OR             1010000010011 >-+---------------------------------((hi_u32 & 0x3ffe) >> 1))
 #       _______________________
 # imm = 1001111011010000010011
 
@@ -1470,7 +1476,7 @@ def make_C_block(lines, begin = None, end = None, ret = None, indent=True):
 
 def make_sparse_mask(num, mask):
     switch = False
-    bcount = bin(mask).count("1") # count how many bits are set
+    ncount = 0 # counts how many bits were *not* set.
     masks_count = 0 # How many masks we do have
     masks = {}
     bshift = {}
@@ -1479,14 +1485,15 @@ def make_sparse_mask(num, mask):
             if not switch:
                 switch = True
                 masks_count += 1
-                bshift[masks_count] = i
+                bshift[masks_count] = ncount
             if masks_count in masks:
                 masks[masks_count] |= 1 << i
             else:
                 masks[masks_count] = 1 << i
-            bcount -= 1
+            #bcount -= 1
         else:
             switch = False
+            ncount += 1
 
     # print("MASK") # For grep
     # print(bin(mask))
