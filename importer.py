@@ -1449,7 +1449,25 @@ def make_C_block(lines, begin = None, end = None, ret = None, indent=True):
     return new
 
 # Group consequent bits in a numbers, for faster masking
-# TODO: Add an example
+
+# Let the input mask of an immediate be: 0b1111111110011111111111110
+# Though the bits of the actual immediate need to be concated ignoring bit 15:14 and bit 0 (the zeros in the mask).
+# So this function returns C-code which shifts the bits of the immediate parts and ORs them to represents a valid value.
+
+# hi_u32 is the actual immediate.
+
+# Mask:    111111111|00|1111111111111|0
+# hi_u32:  100111101|10|1010000010011|0
+#              |                 |
+#           +--+ <---------------|-------[shift bit 22:16]             [shift bit 13:1]
+#       ____|____                |     ((hi_u32 & 0x1ff0000) >> 3) | ((hi_u32 & 0x3ffe) >> 1))
+#       1001111010000000000000   |                                          |
+# OR             1010000010011 <-+------------------------------------------+
+#       _______________________
+# imm = 1001111011010000010011
+
+# imm = ((hi_u32 & 0x1ff0000) >> 3) | ((hi_u32 & 0x3ffe) >> 1))
+
 def make_sparse_mask(num, mask):
     switch = False
     bcount = bin(mask).count("1") # count how many bits are set
@@ -1470,11 +1488,13 @@ def make_sparse_mask(num, mask):
         else:
             switch = False
 
-    #print(masks)
+    # print("MASK") # For grep
+    # print(bin(mask))
+    # print(masks)
     outstrings = []
     for i in range(masks_count, 0, -1):
         outstrings += ["(({0:s} & 0x{1:x}) >> {2:d})".format(num, masks[i], bshift[i])]
-    #print(outstrings)
+    # print(outstrings)
     outstring = " | ".join(outstrings)
     outstring = "({0:s})".format(outstring)
     return outstring
