@@ -1638,8 +1638,9 @@ def extract_fields_r2(ins_tmpl):
             # Also applies to the loops
 
             if ins_tmpl.operands[n].signed or (is_branch and i == ti):
-                signmask = "hi->ops[{0:d}].op.imm & (1 << {1:d})".format(i, f.mask_len)
-                signext = "hi->ops[{0:d}].op.imm |= (0xFFFFFFFF << {1:d});".format(i, f.mask_len)
+                # The immediate is already scaled at this point. Therefore the most significant bit is bit 24 (if we assume #r22:2)
+                signmask = "hi->ops[{0:d}].op.imm & (1 << {1:d})".format(i, f.mask_len + ins_tmpl.operands[n].scaled - 1) 
+                signext = "hi->ops[{0:d}].op.imm |= (0xFFFFFFFF << {1:d});".format(i, f.mask_len + ins_tmpl.operands[n].scaled - 1)
                 slines += make_C_block([signext], "if ({0:s})".format(signmask))
             # Handle scaled operands
             if ins_tmpl.operands[n].scaled:
@@ -1735,6 +1736,7 @@ def extract_mnemonic_r2(ins_tmpl):
             args += ["((hi->pf & HEX_PF_LSH1) == HEX_PF_LSH1) ? \":<<1\" : \"\""]
         elif isinstance(o, ImmediateTemplate):
             fmt[o.syntax] = "0x%x" # TODO: Better representation, etc
+            # As soon as we extract the classes from the encoded instructions this should its info from it.
             if ("JUMP_" in ins_tmpl.name or "CALL_" in ins_tmpl.name) and (i == len(ins_tmpl.operands)-1):
                 args += ["addr + (st32) hi->ops[{0:d}].op.imm".format(i)]
             else:
