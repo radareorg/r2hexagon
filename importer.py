@@ -1448,11 +1448,35 @@ def make_C_block(lines, begin = None, end = None, ret = None, indent=True):
         new += ["}"]
     return new
 
-# Group consequent bits in a numbers, for faster masking
-# TODO: Add an example
+# --------------------------------------------------------------------------------
+# Associated bits of an instruction field are scattered over the encoding instruction in a whole.
+# Here we assemble them by using the mask of the field.
+#
+# Simple example:
+# Let the input mask of an immediate be: 0b1111111110011111111111110
+# The bits of the actual immediate need to be concatenated ignoring bit 15:14 and bit 0 (the zeros in the mask).
+# So this function returns C-code which shifts the bits of the immediate segments and ORs them to represent a valid value.
+#
+# hi_u32 is the raw instruction from which we want to concatenate bit 24:16 and bit 13:1 (bit 31:25 are ignored here)
+# 10th         2           1
+# bit #    432109876 54 3210987654321 0
+
+# Mask:    111111111|00|1111111111111|0
+# hi_u32:  100111101|10|1010000010011|0
+#              |                 |
+#              |                 |
+#           +--+ >---------------|-------[shift bit 24:16]        
+#       ____|____                |     ((hi_u32 & 0x1ff0000) >> 3)
+#       1001111010000000000000   |                                   [shift bit 13:1]
+# OR             1010000010011 >-+---------------------------------((hi_u32 & 0x3ffe) >> 1))
+#       _______________________
+# imm = 1001111011010000010011
+
+# imm = ((hi_u32 & 0x1ff0000) >> 3) | ((hi_u32 & 0x3ffe) >> 1))
+
 def make_sparse_mask(num, mask):
     switch = False
-    bcount = bin(mask).count("1") # count how many bits are set
+    ncount = 0 # counts how many bits were *not* set.
     masks_count = 0 # How many masks we do have
     masks = {}
     bshift = {}
@@ -1461,20 +1485,23 @@ def make_sparse_mask(num, mask):
             if not switch:
                 switch = True
                 masks_count += 1
-                bshift[masks_count] = i
+                bshift[masks_count] = ncount
             if masks_count in masks:
                 masks[masks_count] |= 1 << i
             else:
                 masks[masks_count] = 1 << i
-            bcount -= 1
+            #bcount -= 1
         else:
             switch = False
+            ncount += 1
 
-    #print(masks)
+    # print("MASK") # For grep
+    # print(bin(mask))
+    # print(masks)
     outstrings = []
     for i in range(masks_count, 0, -1):
         outstrings += ["(({0:s} & 0x{1:x}) >> {2:d})".format(num, masks[i], bshift[i])]
-    #print(outstrings)
+    # print(outstrings)
     outstring = " | ".join(outstrings)
     outstring = "({0:s})".format(outstring)
     return outstring
@@ -1609,9 +1636,11 @@ def extract_fields_r2(ins_tmpl):
             val = "hi->ops[{0:d}].op.imm = {1:s}".format(i, mask)
             # Perform sign extension (also applies to jump targets...)
             # Also applies to the loops
+
             if ins_tmpl.operands[n].signed or (is_branch and i == ti):
-                signmask = "hi->ops[{0:d}].op.imm & (1 << {0:d})".format(i, f.mask_len)
-                signext = "hi->ops[{0:d}].op.imm |= (0xFFFFFFFF << {0:d});".format(i, f.mask_len)
+                # The immediate is already scaled at this point. Therefore the most significant bit is bit 24 (if we assume #r22:2)
+                signmask = "hi->ops[{0:d}].op.imm & (1 << {1:d})".format(i, f.mask_len + ins_tmpl.operands[n].scaled - 1) 
+                signext = "hi->ops[{0:d}].op.imm |= (0xFFFFFFFF << {1:d});".format(i, f.mask_len + ins_tmpl.operands[n].scaled - 1)
                 slines += make_C_block([signext], "if ({0:s})".format(signmask))
             # Handle scaled operands
             if ins_tmpl.operands[n].scaled:
@@ -1707,7 +1736,11 @@ def extract_mnemonic_r2(ins_tmpl):
             args += ["((hi->pf & HEX_PF_LSH1) == HEX_PF_LSH1) ? \":<<1\" : \"\""]
         elif isinstance(o, ImmediateTemplate):
             fmt[o.syntax] = "0x%x" # TODO: Better representation, etc
-            args += ["hi->ops[{0:d}].op.imm".format(i)]
+            # As soon as we extract the classes from the encoded instructions this should its info from it.
+            if ("JUMP_" in ins_tmpl.name or "CALL_" in ins_tmpl.name) and (i == len(ins_tmpl.operands)-1):
+                args += ["addr + (st32) hi->ops[{0:d}].op.imm".format(i)]
+            else:
+                args += ["hi->ops[{0:d}].op.imm".format(i)]
         else:
             pass
 
@@ -1822,7 +1855,7 @@ def write_files_r2(ins_class, ins_duplex, hex_insn_names, extendable_insn):
     includes += [""] # for the sake of beauty
 
     # Wrap everything into one function
-    lines = includes + make_C_block(lines, "int hexagon_disasm_instruction(ut32 hi_u32, HexInsn *hi)", None, "return 4;")
+    lines = includes + make_C_block(lines, "int hexagon_disasm_instruction(ut32 hi_u32, HexInsn *hi, ut32 addr)", None, "return 4;")
     with open(HEX_DISAS_FILENAME, "w") as f:
         for l in lines:
             f.write(l + "\n")
@@ -1837,15 +1870,16 @@ def write_files_r2(ins_class, ins_duplex, hex_insn_names, extendable_insn):
         if i.branch:
             if isinstance(i.branch.target, ImmediateTemplate):
                 ilines += ["// {0:s}".format(i.syntax)]
-                if i.branch.type == "call" or i.branch.type == "callr":
+
+                if i.branch.type == "call":
                     ilines += ["op->type = R_ANAL_OP_TYPE_CALL;"]
-                    ilines += ["op->jump = op->addr + hi->ops[{0:d}].op.imm;".format(i.branch.target.index)]
+                    ilines += ["op->jump = op->addr + (st32) hi->ops[{0:d}].op.imm;".format(i.branch.target.index)]
                 else:
                     if i.branch.is_conditional:
                         ilines += ["op->type = R_ANAL_OP_TYPE_CJMP;"]
                     else:
                         ilines += ["op->type = R_ANAL_OP_TYPE_JMP;"]
-                    ilines += ["op->jump = hi->ops[{0:d}].op.imm;".format(i.branch.target.index)]
+                    ilines += ["op->jump = op->addr + (st32) hi->ops[{0:d}].op.imm;".format(i.branch.target.index)]
                     ilines += ["op->fail = op->addr + op->size;"]
                 emulines += make_C_block(ilines, "case {0:s}:".format(i.name), None, "break;")
             if i.branch.type == "dealloc_return":
