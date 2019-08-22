@@ -1739,6 +1739,9 @@ def extract_mnemonic_r2(ins_tmpl):
             # As soon as we extract the classes from the encoded instructions this should its info from it.
             if ("JUMP_" in ins_tmpl.name or "CALL_" in ins_tmpl.name) and (i == len(ins_tmpl.operands)-1):
                 args += ["addr + (st32) hi->ops[{0:d}].op.imm".format(i)]
+            elif o.signed:
+                fmt[o.syntax] = "%d"
+                args += ["(st32) hi->ops[{0:d}].op.imm".format(i)] 
             else:
                 args += ["hi->ops[{0:d}].op.imm".format(i)]
         else:
