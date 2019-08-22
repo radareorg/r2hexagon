@@ -1,9 +1,9 @@
-Rd = memb(##U32)
-Rd = memub(##U32)
-Rd = memh(##U32)
-Rd = memuh(##U32)
-Rd = memw(##U32)
-Rd = memd(##U32)
+Rd = memb(##U32) // +
+Rd = memub(##U32) // +
+Rd = memh(##U32) // +
+Rd = memuh(##U32) // +
+Rd = memw(##U32) // +
+Rd = memd(##U32) // +
 if (Pt) Rd = memb (Rs + #u6:0) // +
 if (!Pt) Rd = memb (Rs + #u6:0) // +
 if (Pt.new) Rd = memb (Rs + #u6:0) // +
@@ -82,34 +82,34 @@ if (Pv) memb(Rs + #u6:0) = Rt // +
 if (!Pv) memb(Rs + #u6:0) = Rt // +
 if (Pv.new) memb(Rs + #u6:0) = Rt // +
 if (!Pv.new) memb(Rs + #u6:0) = Rt // +
-if (Pv) memb(Rs + #u6:0) = Rt.new
-if (!Pv) memb(Rs + #u6:0) = Rt.new
-if (Pv.new) memb(Rs + #u6:0) = Rt.new
-if (!Pv.new) memb(Rs + #u6:0) = Rt.new
+if (Pv) memb(Rs + #u6:0) = Rt.new // +
+if (!Pv) memb(Rs + #u6:0) = Rt.new // +
+if (Pv.new) memb(Rs + #u6:0) = Rt.new // +
+if (!Pv.new) memb(Rs + #u6:0) = Rt.new // +
 if (Pv) memh(Rs + #u6:1) = Rt // +
 if (!Pv) memh(Rs + #u6:1) = Rt // +
 if (Pv.new) memh(Rs + #u6:1) = Rt // +
 if (!Pv.new) memh(Rs + #u6:1) = Rt // +
-if (Pv) memh(Rs + #u6:1) = Rt.new
-if (!Pv) memh(Rs + #u6:1) = Rt.new
-if (Pv.new) memh(Rs + #u6:1) = Rt.new
-if (!Pv.new) memh(Rs + #u6:1) = Rt.new
+if (Pv) memh(Rs + #u6:1) = Rt.new // +
+if (!Pv) memh(Rs + #u6:1) = Rt.new // +
+if (Pv.new) memh(Rs + #u6:1) = Rt.new // +
+if (!Pv.new) memh(Rs + #u6:1) = Rt.new // +
 if (Pv) memw(Rs + #u6:2) = Rt // +
 if (!Pv) memw(Rs + #u6:2) = Rt // +
 if (Pv.new) memw(Rs + #u6:2) = Rt // +
 if (!Pv.new) memw(Rs + #u6:2) = Rt // +
-if (Pt) memw(Rs + ##U32) = Rt.new
-if (!Pt) memw(Rs + ##U32) = Rt.new
-if (Pt.new) memw(Rs + ##U32) = Rt.new
-if (!Pt.new) memw(Rs + ##U32) = Rt.new
+if (Pt) memw(Rs + ##U32) = Rt.new // +
+if (!Pt) memw(Rs + ##U32) = Rt.new // +
+if (Pt.new) memw(Rs + ##U32) = Rt.new // +
+if (!Pt.new) memw(Rs + ##U32) = Rt.new // +
 if (Pv) memd(Rs + #u6:3) = Rtt // +
 if (!Pv) memd(Rs + #u6:3) = Rtt // +
 if (Pv.new) memd(Rs + #u6:3) = Rtt // +
 if (!Pv.new) memd(Rs + #u6:3) = Rtt // +
-if (Pt) memd(Rs + ##U32) = Ntt.new
-if (!Pt) memd(Rs + ##U32) = Ntt.new
-if (Pt.new) memd(Rs + ##U32) = Ntt.new
-if (!Pt.new) memd(Rs + ##U32) = Ntt.new
+if (Pt) memd(Rs + ##U32) = Ntt.new // +
+if (!Pt) memd(Rs + ##U32) = Ntt.new // +
+if (Pt.new) memd(Rs + ##U32) = Ntt.new // +
+if (!Pt.new) memd(Rs + ##U32) = Ntt.new // +
 memb(Rs + #s11:0) = Rt // +
 memh(Rs + #s11:1) = Rt // +
 memw(Rs + #s11:2) = Rt // +
@@ -122,10 +122,10 @@ memb(Re=#U6) = Rt // +
 memh(Re=#U6) = Rt // +
 memw(Re=#U6) = Rt // +
 memd(Re=#U6) = Rtt // +
-memb(Re=##U32) = Rt.new
-memh(Re=##U32) = Rt.new
-memw(Re=##U32) = Rt.new
-memd(Re=##U32) = Rt.new
+memb(Re=##U32) = Rt.new // +
+memh(Re=##U32) = Rt.new // +
+memw(Re=##U32) = Rt.new // +
+memd(Re=##U32) = Rt.new // +
 memb(Ru<<#u2 + #U6) = Rt // +
 memh(Ru<<#u2 + #U6) = Rt // +
 memw(Ru<<#u2 + #U6) = Rt // +
@@ -162,14 +162,14 @@ if (Pt) memd(#u6) = Rtt // +
 if (Pt) memd(#u6) = Rtt // +
 if (!Pt) memd(#u6) = Rtt // +
 if (!Pt) memd(#u6) = Rtt // +
-if (Pt) memd(#u6) = Rt.new
-if (Pt) memd(#u6) = Rt.new
-if (!Pt) memd(#u6) = Rt.new
-if (!Pt) memd(#u6) = Rt.new
-memw(Rs + #u6) = ##U32
-if Ps memw(Rs + #u6) = ##U32
-if !Ps memw(Rs + #u6) = ##U32
-memw(Rs + Rt<<#u2) = ##U32
+if (Pt) memd(#u6) = Rt.new // +
+if (Pt) memd(#u6) = Rt.new // +
+if (!Pt) memd(#u6) = Rt.new // +
+if (!Pt) memd(#u6) = Rt.new // +
+memw(Rs + #u6) = ##U32 // +
+if Ps memw(Rs + #u6) = ##U32 // +
+if !Ps memw(Rs + #u6) = ##U32 // +
+memw(Rs + Rt<<#u2) = ##U32 // +
 if (cmp.eq(Ns.new,#U5)) jump:nt #r9:2 // +
 if (cmp.eq(Ns.new,#U5)) jump:t #r9:2 // +
 if (!cmp.eq(Ns.new,#U5)) jump:nt #r9:2 // +
@@ -279,4 +279,7 @@ Pd = cmpb.gtu (Rs,#u7) // +
 Pd = cmph.eq (Rs,#s8) // +
 Pd = cmph.gt (Rs,#s8) // +
 Pd = cmph.gtu (Rs,#u7) // +
-
+Rdd = combine (#s8,#S8) // +
+memb(Rs + #u6:0) = #S8 // +
+memh(Rs + #u6:1) = #S8 // +
+memw(Rs + #u6:2) = #S8 // +

@@ -24678,6 +24678,7 @@ int hexagon_disasm_instruction(ut32 hi_u32, HexInsn *hi, ut32 addr) {
 						hi->ops[2].op.imm |= (0xFFFFFFFF << 7);
 					}
 					hi->predicate = HEX_NOPRED;
+					hex_op_extend(&hi->ops[1]);
 					sprintf(hi->mnem, "memb (R%d + 0x%x) = 0x%x", hi->ops[0].op.reg, hi->ops[1].op.imm, hi->ops[2].op.imm);
 					break;
 				}
@@ -24875,6 +24876,7 @@ int hexagon_disasm_instruction(ut32 hi_u32, HexInsn *hi, ut32 addr) {
 						hi->ops[2].op.imm |= (0xFFFFFFFF << 7);
 					}
 					hi->predicate = HEX_NOPRED;
+					hex_op_extend_off(&hi->ops[1], 1);
 					sprintf(hi->mnem, "memh (R%d + 0x%x) = 0x%x", hi->ops[0].op.reg, hi->ops[1].op.imm, hi->ops[2].op.imm);
 					break;
 				}
@@ -25128,6 +25130,7 @@ int hexagon_disasm_instruction(ut32 hi_u32, HexInsn *hi, ut32 addr) {
 						hi->ops[2].op.imm |= (0xFFFFFFFF << 7);
 					}
 					hi->predicate = HEX_NOPRED;
+					hex_op_extend_off(&hi->ops[1], 2);
 					sprintf(hi->mnem, "memw (R%d + 0x%x) = 0x%x", hi->ops[0].op.reg, hi->ops[1].op.imm, hi->ops[2].op.imm);
 					break;
 				}
@@ -28055,6 +28058,7 @@ int hexagon_disasm_instruction(ut32 hi_u32, HexInsn *hi, ut32 addr) {
 						hi->ops[2].op.imm |= (0xFFFFFFFF << 7);
 					}
 					hi->predicate = HEX_NOPRED;
+					hex_op_extend(&hi->ops[1]);
 					sprintf(hi->mnem, "R%d:R%d = combine (0x%x, 0x%x)", hi->ops[0].op.reg + 1, hi->ops[0].op.reg, hi->ops[1].op.imm, hi->ops[2].op.imm);
 					break;
 				}
