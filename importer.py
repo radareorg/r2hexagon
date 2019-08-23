@@ -191,41 +191,6 @@ class OptionalTemplate(OperandTemplate):
         self.index = 0
         self.syntax_pos = 0
 
-class InstructionOperand():
-
-    def __init__(self):
-        pass
-
-
-class InstructionRegister(InstructionOperand):
-    __slots__ = ['name', 'index']
-
-    def __init__(self):
-        super().__init__(self)
-        self.name = None
-        self.index = 0
-
-
-class InstructionImmediate(InstructionOperand):
-    __slots__ = ['is_extended', 'value', 'index']
-
-    def __init__(self):
-        super().__init__(self)
-        self.is_extended = False
-        self.value = None
-        self.index = 0
-
-# for optional [:<<N]
-class InstructionOptional(InstructionOperand):
-    __slots__ = ['name', 'syntax_pos', 'index']
-
-    def __init__(self):
-        super().__init__(self)
-        self.name = None
-        self.value = None
-        self.syntax_pos = None
-        self.index = 0
-
 class EncodingField():
     """Hexagon instruction encoding field, as seen in the manual.
 
