@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
+# pylint: disable=missing-docstring, invalid-name, line-too-long, too-many-lines, fixme
+# pylint: disable=too-few-public-methods
 
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 import argparse
 import re
-import sys
 import operator
 import collections
+import sys
+
+class UnexpectedException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
 
 def standarize_syntax_objdump(syntax):
     """Change instruction syntax to match Qualcomm's objdump output.
@@ -29,7 +35,7 @@ def standarize_syntax_objdump(syntax):
 
     # Add spaces to certain chars like '=' and '()'
 
-    both_spaces = ['=','+','-','*','/', '&', '|', '<<', '^']
+    both_spaces = ['=', '+', '-', '*', '/', '&', '|', '<<', '^']
     left_space = ['(', '!']
     rigth_space = [')', ',']
     for c in both_spaces:
@@ -82,7 +88,7 @@ def standarize_syntax_objdump(syntax):
     return syntax
 
 
-class OperandTemplate(object):
+class OperandTemplate():
     # TODO: Document class.
 
     __slots__ = ['syntax_name']
@@ -95,7 +101,7 @@ class OperandTemplate(object):
 class RegisterTemplate(OperandTemplate):
     # TODO: Document class.
 
-    __slots__ = ['is_register_pair', 'is_predicate','is_control', 'is_system', 'is_newvalue', 'syntax', 'index']
+    __slots__ = ['is_register_pair', 'is_predicate', 'is_control', 'is_system', 'is_newvalue', 'syntax', 'index']
 
     def __init__(self, syntax_name):
         super(RegisterTemplate, self).__init__(syntax_name)
@@ -155,7 +161,6 @@ class RegisterTemplate(OperandTemplate):
         # TODO: Check if the general purpose register is the only that uses reg. pairs.
         # (the control reg is also possible as reg. pair but they are usually rreferencedby their alias)
 
-        return
 
 
 class ImmediateTemplate(OperandTemplate):
@@ -164,7 +169,7 @@ class ImmediateTemplate(OperandTemplate):
     __slots__ = ['scaled', 'type', 'syntax', 'signed', 'index']
     # TODO: Change `scaled` to ``scale`` (because it's used as an int, not a bool).
 
-    def __init__(self, syntax_name, scaled = 0):
+    def __init__(self, syntax_name, scaled=0):
         super(ImmediateTemplate, self).__init__(syntax_name)
         self.syntax = syntax_name
         self.scaled = scaled
@@ -187,54 +192,7 @@ class OptionalTemplate(OperandTemplate):
         self.index = 0
         self.syntax_pos = 0
 
-class InstructionOperand(object):
-    # TODO: Document class.
-
-    __slots__ = ['field_value', 'template', 'print_format', 'field_char']
-    # TODO: Change `print_format` to ``text_format`` or ``text_output_format``.
-
-    def __init__(self):
-        pass
-
-
-class InstructionRegister(InstructionOperand):
-    __slots__ = ['name', 'index']
-    # TODO: There's some clash with `syntax_name` of template operands,
-    # which should be named just ``syntax``.
-
-    def __init__(self):
-        self.name = None
-        self.index = 0
-
-    def __repr__(self):
-        return self.name
-
-
-class InstructionImmediate(InstructionOperand):
-    __slots__ = ['is_extended', 'value', 'index']
-
-    def __init__(self):
-        self.is_extended = False
-        self.value = None
-        self.index = 0
-
-    def __repr__(self):
-        return self.print_format.format(self.value)
-
-# for optional [:<<N]
-class InstructionOptional(InstructionOperand):
-    __slots__ = ['name', 'syntax_pos', 'index']
-
-    def __init__(self):
-        self.name = None
-        self.value = None
-        self.syntax_pos = None
-        self.index = 0
-
-    def __repr__(self):
-        return self.print_format.format(self.value)
-
-class EncodingField(object):
+class EncodingField():
     """Hexagon instruction encoding field, as seen in the manual.
 
     An encoding field can be characterized with only a mask (int) with the 1's set
@@ -290,7 +248,7 @@ class EncodingField(object):
         self.index = 0
 
 
-class TemplateBranch(object):
+class TemplateBranch():
     """Hexagon instruction branch.
 
     Attribute that adds information to the InstructionTemplate, used mainly
@@ -326,11 +284,11 @@ class TemplateBranch(object):
     """
     __slots__ = ['target', 'is_conditional', 'type']
 
-    jump_reg_syntax =      r'jumpr (?: :t | :nt)?'  # ``?:`` don't capture group
-    jump_imm_syntax =      jump_reg_syntax.replace('jumpr', 'jump')
-    call_reg_syntax =      r'callr'
-    call_imm_syntax =      call_reg_syntax.replace('callr', 'call')
-    dealloc_ret_syntax =   r'dealloc_return'
+    jump_reg_syntax = r'jumpr (?: :t | :nt)?'  # ``?:`` don't capture group
+    jump_imm_syntax = jump_reg_syntax.replace('jumpr', 'jump')
+    call_reg_syntax = r'callr'
+    call_imm_syntax = call_reg_syntax.replace('callr', 'call')
+    dealloc_ret_syntax = r'dealloc_return'
     all_branches = [jump_reg_syntax, jump_imm_syntax, call_reg_syntax, call_imm_syntax, dealloc_ret_syntax]
 
     def __init__(self, type):
@@ -338,7 +296,7 @@ class TemplateBranch(object):
         self.target = None
         self.is_conditional = False
 
-class TemplateToken(object):
+class TemplateToken():
     """Hexagon instruction template token.
 
     Used mainly in the IDA processor module, to print some parts of the syntax (tokens)
@@ -361,7 +319,7 @@ class TemplateToken(object):
         self.op = None
 
 
-class InstructionEncoding(object):
+class InstructionEncoding():
     """Hexagon instruction encoding.
 
     Attributes:
@@ -502,7 +460,7 @@ class InstructionEncoding(object):
             # lowest position in the mask (int), as their orders are reversed.
 
 
-class InstructionDefinition(object):
+class InstructionDefinition():
     """Definition of an instruction (like the manual): syntax, encoding, and beahvior.
 
     Instructions obtained by the importer (either from the manual or the objdump
@@ -521,14 +479,14 @@ class InstructionDefinition(object):
     """
     __slots__ = ['syntax', 'encoding', 'behavior']
 
-    def __init__(self, syntax, encoding):
+    def __init__(self, syntax, encoding, behavior):
         self.syntax = syntax
         self.encoding = InstructionEncoding(encoding)
-        self.behavior = ''
+        self.behavior = behavior
 
 # TODO: Handle also TAB characters
 
-class InstructionTemplate(object):
+class InstructionTemplate():
     """Definition of the instruction with the maximum processing done before being used for disassembly.
 
     Created by the decoder from an `InstructionDefinition`.
@@ -572,12 +530,12 @@ class InstructionTemplate(object):
 
     immediate_operand_field_chars = ['i', 'I']
 
-    other_field_chars = ['-',  'P', 'E', 'N']
+    other_field_chars = ['-', 'P', 'E', 'N']
     # 'E' added from the objdump header encodings (not in the manual)
 
-    field_chars =   register_operand_field_chars + \
-                    immediate_operand_field_chars + \
-                    other_field_chars
+    field_chars = register_operand_field_chars + \
+                  immediate_operand_field_chars + \
+                  other_field_chars
     # TODO: move all field char definitions inside `generate_operand` or in `common.py`.
 
     def __init__(self, inst_def):
@@ -640,10 +598,8 @@ class InstructionTemplate(object):
             if reg:
                 self.operands[c] = reg
                 self.reg_ops.append(reg)
-
                 return
-            else:
-                print("not register operand match in syntax! [{0:s}]".format(c))
+            print("not register operand match in syntax! [{0:s}]".format(c))
 
         if c in self.immediate_operand_field_chars:
             imm = self.match_immediate_char_in_syntax(self.syntax, c)
@@ -652,8 +608,7 @@ class InstructionTemplate(object):
                 self.imm_ops.append(imm)
 
                 return
-            else:
-                print("no immediate operand match in syntax! [{0:s}]".format(c))
+            print("no immediate operand match in syntax! [{0:s}]".format(c))
 
         # There is a pretty similar structure in both processings.
         # TODO: Can this be abstracted to a more general function?
@@ -666,8 +621,7 @@ class InstructionTemplate(object):
                 self.operands[c].syntax_pos = (m.start(1), m.end(1))
                 self.opt_ops.append(opt)
                 return
-            else:
-                print("no optional operand match in syntax!")
+            print("no optional operand match in syntax!")
 
         # If it gets here there's an unforeseen field char that was not processed correctly.
         print("Field char {:s} not processed correctly.".format(c))
@@ -694,17 +648,16 @@ class InstructionTemplate(object):
 
         reg_templates = [
             r"(R" + reg_char + r"{1,2})",
-             # {1,2}: it can be a double register (e.g. Rdd).
+            # {1,2}: it can be a double register (e.g. Rdd).
 
-             r"(P" + reg_char + r")",
-             r"(N" + reg_char + r".new)",
-             r"(M" + reg_char + r")",
-             r"(C" + reg_char + r")",
+            r"(P" + reg_char + r")",
+            r"(N" + reg_char + r".new)",
+            r"(M" + reg_char + r")",
+            r"(C" + reg_char + r")",
 
-             # Added from the objdump headers, but not in the manual.
-
-             r"(G" + reg_char + r")",
-             r"(S" + reg_char + r"{1,2})", # Can be double register too
+            # Added from the objdump headers, but not in the manual.
+            r"(G" + reg_char + r")",
+            r"(S" + reg_char + r"{1,2})", # Can be double register too
         ]
 
         for rt in reg_templates: # type: str
@@ -735,7 +688,7 @@ class InstructionTemplate(object):
             imm_chars = ['U', 'S', 'M', 'R', 'G']
             # TODO: Use list comprehensions.
         else:
-            raise UnexpectedException()
+            raise UnexpectedException("Unexpected syntax specifier")
 
         for ic in imm_chars: # type: str
 
@@ -759,16 +712,40 @@ class InstructionTemplate(object):
 
     def operand_calculate_indices(self):
         pos = {}
-        i = 0
+        i = ic = rc = oc = 0
         for k,v in self.operands.items():
             pos[k] = self.syntax.find(v.syntax)
         sortedpos = sorted(pos.items(), key=operator.itemgetter(1))
 
         for c,p in sortedpos:
             self.operands[c].index = i
+            # Update imm_ops and reg_ops order too. They were added to imm_ops/reg_ops in
+            # encoding order, not in syntax order (by generate_operands()) this broke at least
+            # two instructions.
+            #
+            # Syntax-order:     Rd = mux(Pu, #s8, #S8)
+            #                   Order: [d, u, s, S]; Reg. order: [d, u]; Imm. order: [s, S]
+            #
+            # Encoding-order:   0111101uuIIIIIIIPPIiiiiiiiiddddd
+            #                   Order: [u, I, i, d]; reg. order: [u, d]; imm. order: [I, i]
+            #                   (I = S, s = i etc.)
+
+            if isinstance(self.operands[c], ImmediateTemplate):
+                self.imm_ops[ic] = self.operands[c]
+                ic += 1
+            elif isinstance(self.operands[c], RegisterTemplate):
+                self.reg_ops[rc] = self.operands[c]
+                rc += 1
+            elif isinstance(self.operands[c], OptionalTemplate):
+                self.opt_ops[oc] = self.operands[c]
+                oc += 1
+            else:
+                print("Operand template: {}".format(self.operands[c]))
+                raise UnexpextectedException("Unknow operands template")
+
             i += 1
 
-class HexagonInstructionDecoder(object):
+class HexagonInstructionDecoder():
     """Hexagon instruction decoder.
 
     Takes instruction definitions and process them to instruction templates.
@@ -840,7 +817,7 @@ class HexagonInstructionDecoder(object):
                 # discard the separator (the operator name in this case) when enclosed
                 # in parenthesis.
             if len(new_tokens) != len(tokens) + 2 * template.syntax.count(op.syntax_name):
-                raise UnexpectedException()
+                raise UnexpectedException("Tokens count doesn't match the syntax")
                 # Every split (appearance of the operand in the syntax)
                 # has to generate 2 new tokens (an old token is split into 3,
                 # the separator and left/right tokens, that are always generated
@@ -898,8 +875,9 @@ class HexagonInstructionDecoder(object):
         if len(template.imm_ops) < 2:
             # There's no need to perform the check, there's (at most) only one
             # immediate operand to choose from.
+            if template.imm_ops:
+                template.imm_ext_op = template.imm_ops[0]
             return
-
         m = re.search(r"""
             # Looking for something like: "apply_extension(...);"
 
@@ -912,6 +890,8 @@ class HexagonInstructionDecoder(object):
 
         if m is None:
             # No constant extension found in the behavior.
+            # But it has immediates -> assume imm_ops[0]
+            template.imm_ext_op = template.imm_ops[0]
             return
 
         imm_op_ext_name = m.group(1)
@@ -927,7 +907,7 @@ class HexagonInstructionDecoder(object):
                 template.imm_ext_op = imm_op
                 return
 
-        raise UnexpectedException()
+        raise UnexpectedException("Cannot parse constant extender")
         # If the regex matched, the operand should have been found in the previous loop.
 
     def analyze_branch(self, template):
@@ -1005,7 +985,7 @@ class HexagonInstructionDecoder(object):
                         template.branch.target = imm
                         return
 
-                raise UnexpectedException()
+                raise UnexpectedException("Cannot find target immediate operand")
                 # The target immediate operand should have been found.
 
         return
@@ -1013,7 +993,7 @@ class HexagonInstructionDecoder(object):
 class ManualParser:
 
     def __init__(self, manual_fn):
-        self.manual = open(manual_fn, 'rU') # U: universal newlines, to get rid of '\r' when opening in linux
+        self.manual = open(manual_fn, 'r', newline=None) # universal newlines, to get rid of '\r' when opening in linux
         self.lines = self.manual.read().splitlines()
         self.ln = 0
         self.current_line = self.lines[self.ln]
@@ -1296,7 +1276,7 @@ class ManualParser:
 #                     if self.current_inst_name not in self.instructions:
 #                         self.instructions[self.current_inst_name] = []
 
-                    self.instructions.append(InstructionDefinition(syntax, ie))
+                    self.instructions.append(InstructionDefinition(syntax, ie, self.syntax_behavior_text[-1][1]))
 
                     self.total_encodings += 1
 
@@ -1346,9 +1326,9 @@ class HeaderParser:
                 if encoding[16:18].lower() == 'ee':
                     # I index the array from left to rigth, and just to be sure I'm converting to lower
                     encoding = (encoding[:16] + '00' + encoding[18:]) # '00' - duplex type
-                    self.duplex_inst_encodings.append(InstructionDefinition(syntax, encoding))
+                    self.duplex_inst_encodings.append(InstructionDefinition(syntax, encoding, ''))
                 else:
-                    self.other_inst_encodings.append(InstructionDefinition(syntax, encoding))
+                    self.other_inst_encodings.append(InstructionDefinition(syntax, encoding, ''))
 #                     print("syntax: " + syntax)
 #                     print("encoding: " + encoding)
 
@@ -1361,7 +1341,7 @@ class HeaderParser:
             # Remove registers size (I'm assuming) from their name:
             # Rd16 -> Rd
 #             print("Before: " + syntax)
-            syntax = re.sub(r'\b ([RPNMCGS][a-z]{1,2}) \d{0,2} \b', r'\1', syntax, flags = re.X) # TODO: Register all possible register types, s,r,t,e etc.
+            syntax = re.sub(r'\b ([RPNMCGS][a-z]{1,2}) \d{0,2} \b', r'\1', syntax, flags=re.X) # TODO: Register all possible register types, s,r,t,e etc.
 #             print("After: " + syntax)
 
             encodings[i].syntax = syntax
@@ -1465,7 +1445,7 @@ def make_C_block(lines, begin = None, end = None, ret = None, indent=True):
 # hi_u32:  100111101|10|1010000010011|0
 #              |                 |
 #              |                 |
-#           +--+ >---------------|-------[shift bit 24:16]        
+#           +--+ >---------------|-------[shift bit 24:16]
 #       ____|____                |     ((hi_u32 & 0x1ff0000) >> 3)
 #       1001111010000000000000   |                                   [shift bit 13:1]
 # OR             1010000010011 >-+---------------------------------((hi_u32 & 0x3ffe) >> 1))
@@ -1639,7 +1619,7 @@ def extract_fields_r2(ins_tmpl):
 
             if ins_tmpl.operands[n].signed or (is_branch and i == ti):
                 # The immediate is already scaled at this point. Therefore the most significant bit is bit 24 (if we assume #r22:2)
-                signmask = "hi->ops[{0:d}].op.imm & (1 << {1:d})".format(i, f.mask_len + ins_tmpl.operands[n].scaled - 1) 
+                signmask = "hi->ops[{0:d}].op.imm & (1 << {1:d})".format(i, f.mask_len + ins_tmpl.operands[n].scaled - 1)
                 signext = "hi->ops[{0:d}].op.imm |= (0xFFFFFFFF << {1:d});".format(i, f.mask_len + ins_tmpl.operands[n].scaled - 1)
                 slines += make_C_block([signext], "if ({0:s})".format(signmask))
             # Handle scaled operands
@@ -1669,13 +1649,24 @@ def extract_fields_r2(ins_tmpl):
 
 def extend_immediates_r2(ins_tmpl):
     elines = []
-    if ins_tmpl.name in extendable_insn:
+    # Note about duplex containers:
+    # In duplex containers only the second of two instructions (slot 1) can be expanded.
+    # Slot 1 are the high bits of an instruction, therefore:
+    #  SLOT 1  ;    SLOT 0
+    # Rd = #u6 ; allocframe(#u5)
+    # The manual speaks of only two specific instructions (Rx = add (Rx, #s7) and Rd = #u6)
+    # which are expandable (But there seem to be more)
+    # Reference: Programmers Manual V62-V67 Chapter 10.3
+
+    if ins_tmpl.name in extendable_insn or (ins_tmpl.is_duplex \
+         and ins_tmpl.syntax.split(';', 1)[0].strip() in extendable_duplex_syntax):
         if ins_tmpl.imm_ops:
             # Assume we only have one - it is clear in the list
-            oi = ins_tmpl.imm_ops[0].index # Immediate operand index
+            op = ins_tmpl.imm_ext_op # imm_ext_op is by default set to imm_ops[0]
+            oi = op.index # Immediate operand index
             # If there is an offset of the operand - apply it too
             # Use "extend_offset(op, off)" function then
-            off = ins_tmpl.imm_ops[0].scaled
+            off = op.scaled
             if off:
                 elines = ["hex_op_extend_off(&hi->ops[{0:d}], {1:d});".format(oi, off)]
             else:
@@ -1739,6 +1730,9 @@ def extract_mnemonic_r2(ins_tmpl):
             # As soon as we extract the classes from the encoded instructions this should its info from it.
             if ("JUMP_" in ins_tmpl.name or "CALL_" in ins_tmpl.name) and (i == len(ins_tmpl.operands)-1):
                 args += ["addr + (st32) hi->ops[{0:d}].op.imm".format(i)]
+            elif o.signed:
+                fmt[o.syntax] = "%d"
+                args += ["(st32) hi->ops[{0:d}].op.imm".format(i)]
             else:
                 args += ["hi->ops[{0:d}].op.imm".format(i)]
         else:
@@ -1914,6 +1908,10 @@ def write_files_r2(ins_class, ins_duplex, hex_insn_names, extendable_insn):
 # ------------------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    if sys.version_info < (3, 7):
+        print("This script needs Python version 3.7 or higher")
+        sys.exit()
+
     parser = argparse.ArgumentParser(description="Hexagon C disassembly generator")
     args = parser.parse_args()
     mp = ManualParser('80-n2040-36_b_hexagon_v62_prog_ref_manual.txt')
@@ -1968,11 +1966,14 @@ if __name__ == "__main__":
     for i in deco.inst_template_list:
         print(i.syntax)
     extendable_insn = [] # The list of extendable instructions' names
+    extendable_duplex_syntax = []
     with open("const_extenders.txt") as f:
         ext_ins = f.read().splitlines()
         for ins_tmpl in deco.inst_template_list:
             for ext_syntax in ext_ins:
                 normsyntax = standarize_syntax_objdump(ext_syntax.split('/', 1)[0])
+                if ext_syntax.split('//')[-1].strip() == "Slot 1 duplex":
+                    extendable_duplex_syntax += [normsyntax.strip()]
                 #print("{0:s} VS {1:s}".format(ins_tmpl.syntax, normsyntax))
                 if ins_tmpl.syntax == normsyntax:
                     extendable_insn += [ins_tmpl.name]
