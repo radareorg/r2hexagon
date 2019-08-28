@@ -9,6 +9,7 @@ import argparse
 import re
 import operator
 import collections
+import sys
 
 class UnexpectedException(Exception):
     def __init__(self, message):
@@ -478,10 +479,10 @@ class InstructionDefinition():
     """
     __slots__ = ['syntax', 'encoding', 'behavior']
 
-    def __init__(self, syntax, encoding):
+    def __init__(self, syntax, encoding, behavior):
         self.syntax = syntax
         self.encoding = InstructionEncoding(encoding)
-        self.behavior = ''
+        self.behavior = behavior
 
 # TODO: Handle also TAB characters
 
@@ -711,13 +712,37 @@ class InstructionTemplate():
 
     def operand_calculate_indices(self):
         pos = {}
-        i = 0
+        i = ic = rc = oc = 0
         for k,v in self.operands.items():
             pos[k] = self.syntax.find(v.syntax)
         sortedpos = sorted(pos.items(), key=operator.itemgetter(1))
 
         for c,p in sortedpos:
             self.operands[c].index = i
+            # Update imm_ops and reg_ops order too. They were added to imm_ops/reg_ops in
+            # encoding order, not in syntax order (by generate_operands()) this broke at least
+            # two instructions.
+            #
+            # Syntax-order:     Rd = mux(Pu, #s8, #S8)
+            #                   Order: [d, u, s, S]; Reg. order: [d, u]; Imm. order: [s, S]
+            #
+            # Encoding-order:   0111101uuIIIIIIIPPIiiiiiiiiddddd
+            #                   Order: [u, I, i, d]; reg. order: [u, d]; imm. order: [I, i]
+            #                   (I = S, s = i etc.)
+
+            if isinstance(self.operands[c], ImmediateTemplate):
+                self.imm_ops[ic] = self.operands[c]
+                ic += 1
+            elif isinstance(self.operands[c], RegisterTemplate):
+                self.reg_ops[rc] = self.operands[c]
+                rc += 1
+            elif isinstance(self.operands[c], OptionalTemplate):
+                self.opt_ops[oc] = self.operands[c]
+                oc += 1
+            else:
+                print("Operand template: {}".format(self.operands[c]))
+                raise UnexpextectedException("Unknow operands template")
+
             i += 1
 
 class HexagonInstructionDecoder():
@@ -850,8 +875,9 @@ class HexagonInstructionDecoder():
         if len(template.imm_ops) < 2:
             # There's no need to perform the check, there's (at most) only one
             # immediate operand to choose from.
+            if template.imm_ops:
+                template.imm_ext_op = template.imm_ops[0]
             return
-
         m = re.search(r"""
             # Looking for something like: "apply_extension(...);"
 
@@ -864,6 +890,8 @@ class HexagonInstructionDecoder():
 
         if m is None:
             # No constant extension found in the behavior.
+            # But it has immediates -> assume imm_ops[0]
+            template.imm_ext_op = template.imm_ops[0]
             return
 
         imm_op_ext_name = m.group(1)
@@ -1248,7 +1276,7 @@ class ManualParser:
 #                     if self.current_inst_name not in self.instructions:
 #                         self.instructions[self.current_inst_name] = []
 
-                    self.instructions.append(InstructionDefinition(syntax, ie))
+                    self.instructions.append(InstructionDefinition(syntax, ie, self.syntax_behavior_text[-1][1]))
 
                     self.total_encodings += 1
 
@@ -1298,9 +1326,9 @@ class HeaderParser:
                 if encoding[16:18].lower() == 'ee':
                     # I index the array from left to rigth, and just to be sure I'm converting to lower
                     encoding = (encoding[:16] + '00' + encoding[18:]) # '00' - duplex type
-                    self.duplex_inst_encodings.append(InstructionDefinition(syntax, encoding))
+                    self.duplex_inst_encodings.append(InstructionDefinition(syntax, encoding, ''))
                 else:
-                    self.other_inst_encodings.append(InstructionDefinition(syntax, encoding))
+                    self.other_inst_encodings.append(InstructionDefinition(syntax, encoding, ''))
 #                     print("syntax: " + syntax)
 #                     print("encoding: " + encoding)
 
@@ -1621,13 +1649,24 @@ def extract_fields_r2(ins_tmpl):
 
 def extend_immediates_r2(ins_tmpl):
     elines = []
-    if ins_tmpl.name in extendable_insn:
+    # Note about duplex containers:
+    # In duplex containers only the second of two instructions (slot 1) can be expanded.
+    # Slot 1 are the high bits of an instruction, therefore:
+    #  SLOT 1  ;    SLOT 0
+    # Rd = #u6 ; allocframe(#u5)
+    # The manual speaks of only two specific instructions (Rx = add (Rx, #s7) and Rd = #u6)
+    # which are expandable (But there seem to be more)
+    # Reference: Programmers Manual V62-V67 Chapter 10.3
+
+    if ins_tmpl.name in extendable_insn or (ins_tmpl.is_duplex \
+         and ins_tmpl.syntax.split(';', 1)[0].strip() in extendable_duplex_syntax):
         if ins_tmpl.imm_ops:
             # Assume we only have one - it is clear in the list
-            oi = ins_tmpl.imm_ops[0].index # Immediate operand index
+            op = ins_tmpl.imm_ext_op # imm_ext_op is by default set to imm_ops[0]
+            oi = op.index # Immediate operand index
             # If there is an offset of the operand - apply it too
             # Use "extend_offset(op, off)" function then
-            off = ins_tmpl.imm_ops[0].scaled
+            off = op.scaled
             if off:
                 elines = ["hex_op_extend_off(&hi->ops[{0:d}], {1:d});".format(oi, off)]
             else:
@@ -1869,6 +1908,10 @@ def write_files_r2(ins_class, ins_duplex, hex_insn_names, extendable_insn):
 # ------------------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    if sys.version_info < (3, 7):
+        print("This script needs Python version 3.7 or higher")
+        sys.exit()
+
     parser = argparse.ArgumentParser(description="Hexagon C disassembly generator")
     args = parser.parse_args()
     mp = ManualParser('80-n2040-36_b_hexagon_v62_prog_ref_manual.txt')
@@ -1923,11 +1966,14 @@ if __name__ == "__main__":
     for i in deco.inst_template_list:
         print(i.syntax)
     extendable_insn = [] # The list of extendable instructions' names
+    extendable_duplex_syntax = []
     with open("const_extenders.txt") as f:
         ext_ins = f.read().splitlines()
         for ins_tmpl in deco.inst_template_list:
             for ext_syntax in ext_ins:
                 normsyntax = standarize_syntax_objdump(ext_syntax.split('/', 1)[0])
+                if ext_syntax.split('//')[-1].strip() == "Slot 1 duplex":
+                    extendable_duplex_syntax += [normsyntax.strip()]
                 #print("{0:s} VS {1:s}".format(ins_tmpl.syntax, normsyntax))
                 if ins_tmpl.syntax == normsyntax:
                     extendable_insn += [ins_tmpl.name]
